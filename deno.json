@@ -1,0 +1,8 @@
+{
+  "name": "edge-kit",
+  "version": "0.1.0",
+  "imports": {
+    "edge-kit": "./mod.ts",
+    "edge-kit/": "./"
+  }
+}
