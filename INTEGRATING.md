@@ -84,6 +84,9 @@ Add the same `deno.json` to every function folder that imports edge-kit.
 
 ## Step 5 — Write your Edge Functions
 
+> **Important:** Supabase requires the entry point file to be named `index.ts`.
+> Other files in the function folder (handlers, utilities) can be named freely.
+
 Import from edge-kit:
 
 ```typescript
