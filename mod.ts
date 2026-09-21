@@ -5,3 +5,5 @@ export * from "./supabaseClient.ts";
 export * from "./requireDevice.ts";
 export * from "./checkLimits.ts";
 export * from "./registerDevice.ts";
+export * from "./deviceFields.ts";
+export * from "./syncDevice.ts";

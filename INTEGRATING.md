@@ -176,7 +176,33 @@ edge-kit import as your other functions.
 
 The function expects:
 - Header: `x-register-secret` matching `REGISTER_SECRET` env var
-- Body: `{ deviceId, token, platform?, appVersion?, osVersion?, locale? }`
+- Body: `{ deviceId, token, platform?, appVersion?, osVersion?, locale?, timezone? }`
+
+**First registration only.** A repeat call for an existing device is a no-op: it never overwrites
+`status` (so it can't un-block a blocked device), the stored token, or values already synced. Call it
+once per install; later updates go through `sync-device` (next step).
+
+### Step 6b — Add a sync-device function (optional; push notifications and last-open time)
+
+`handleSyncDevice` updates an already-registered device with fresh data and stamps `last_opened_at`.
+Copy `migrations/20260921000002_device_push_columns.sql` first (adds `timezone`, `expo_push_token`,
+`push_token_updated_at`, `push_permission`, `notifications_enabled`, `last_opened_at`), then create
+`supabase/functions/sync-device/index.ts` the same way as `register-device`, calling `handleSyncDevice(req)`.
+
+- **Auth:** the `x-device-id` / `x-device-token` headers, like every other action. The device is taken
+  from those headers, never from the body, so a device can only update its own row.
+- **Body (all optional):** `platform` (`ios`|`android`), `appVersion`, `osVersion`, `locale`, `timezone`
+  (IANA), `pushPermission` (`granted`|`denied`|`undetermined`), `expoPushToken`
+  (`ExponentPushToken[...]`), `notificationsEnabled` (boolean).
+- **Allowlist:** anything else in the body (`status`, `device_id`, `token`, `created_at`, ...) is ignored
+  and logged, never written. An allowlisted field with a bad value returns a 400.
+- `last_opened_at` is set from the server's clock. An Expo token is kept on one device only: syncing a
+  token clears it from any other device row that still holds it (a reinstall creates a new device id).
+- Add the same `deno.json` (edge-kit import) to the function folder.
+
+## Tests
+
+`deno test deviceFields_test.ts` covers the allowlist and validation (pure functions, no network).
 
 ---
 
@@ -229,6 +255,7 @@ On every subsequent Edge Function call:
 - [ ] `deno.json` added to each function folder (pinned GitHub URL)
 - [ ] Edge Functions written using edge-kit imports
 - [ ] `register-device` function added (uses `handleRegisterDevice` from edge-kit)
+- [ ] (optional) `sync-device` function added, and the device push-columns migration copied
 - [ ] `ANTHROPIC_API_KEY` + `REGISTER_SECRET` set via `supabase secrets set`
 - [ ] `REGISTER_SECRET` saved to password manager + added to app `.env`
 - [ ] `supabase functions deploy` — all functions live

@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient.ts'
 import { okResp, errResp, genRequestId, ErrorCodes } from './errors.ts'
 import { corsHeaders } from './cors.ts'
+import { isValidTimezone } from './deviceFields.ts'
 
 export async function handleRegisterDevice(req: Request): Promise<Response> {
   const requestId = genRequestId()
@@ -17,6 +18,7 @@ export async function handleRegisterDevice(req: Request): Promise<Response> {
     appVersion?: string
     osVersion?: string
     locale?: string
+    timezone?: string
   }
 
   try {
@@ -25,19 +27,25 @@ export async function handleRegisterDevice(req: Request): Promise<Response> {
     return errResp(ErrorCodes.BAD_JSON, 'Invalid JSON body', 400, requestId, corsHeaders)
   }
 
-  const { deviceId, token, platform, appVersion, osVersion, locale } = body
+  const { deviceId, token, platform, appVersion, osVersion, locale, timezone } = body
 
   if (!deviceId || !token) {
     return errResp(ErrorCodes.VALIDATION_ERROR, 'deviceId and token are required', 400, requestId, corsHeaders)
   }
 
+  // First registration only. ignoreDuplicates makes a repeat call for an
+  // existing device a no-op, so it can never overwrite status (un-blocking a
+  // blocked device), the stored token, or values already synced. Later
+  // updates go through sync-device.
   const { error: deviceError } = await supabase.from('devices').upsert({
     device_id: deviceId,
     platform: platform ?? null,
     app_version: appVersion ?? null,
     os_version: osVersion ?? null,
     locale: locale ?? null,
-  })
+    timezone: isValidTimezone(timezone) ? timezone : null,
+    last_opened_at: new Date().toISOString(),
+  }, { onConflict: 'device_id', ignoreDuplicates: true })
 
   if (deviceError) {
     console.error('[register-device] devices upsert failed', { deviceId, requestId, deviceError })
@@ -48,7 +56,7 @@ export async function handleRegisterDevice(req: Request): Promise<Response> {
     device_id: deviceId,
     token,
     status: 'active',
-  })
+  }, { onConflict: 'device_id', ignoreDuplicates: true })
 
   if (tokenError) {
     console.error('[register-device] device_tokens upsert failed', { deviceId, requestId, tokenError })
