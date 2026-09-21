@@ -56,6 +56,21 @@ Verify in Supabase dashboard → Table Editor that these tables exist:
 
 Then push your app-level migrations (if any) the same way — they run in filename order.
 
+**Security: copy `20260921000001_lock_down_rate_limit.sql` too, including on projects that already
+pushed the earlier migrations.** The original rate-limit migration granted `enforce_rate_limit` to the
+public `anon` role, which lets anyone with the app's public key insert rows into `rate_limit_events`.
+The new migration revokes that and turns on RLS for the device tables. Then re-check with the public
+key; this should be refused with `permission denied for function enforce_rate_limit` (a limit of 0
+inserts nothing):
+
+```bash
+curl -s -X POST "$SUPABASE_URL/rest/v1/rpc/enforce_rate_limit" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" \
+  -d '{"_device_id":"probe","_limit":0,"_window_seconds":1}'
+```
+
+Also read the dashboard's Security Advisor after pushing.
+
 ---
 
 ## Step 4 — Add deno.json to your functions folder
