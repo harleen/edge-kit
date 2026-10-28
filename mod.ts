@@ -7,3 +7,5 @@ export * from "./checkLimits.ts";
 export * from "./registerDevice.ts";
 export * from "./deviceFields.ts";
 export * from "./syncDevice.ts";
+export * from "./usageKind.ts";
+export * from "./countUsage.ts";
